@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0c11">
+<title>Глаз</title>
+<style>
+/* Пульт глаза. Тёмный «ночной» пульт: сцена с глазами сверху, под ней веки, эмоции, поведение, настройка серв.
+   Шрифты только системные: телефон подключён к точке ESP без интернета. */
+:root{
+  --bg:#0a0c11; --panel:#121620; --panel2:#191e2b; --line:#262d3e; --fg:#e9edf5; --muted:#8a93a8;
+  --amber:#ffb547; --amber-deep:#ff7a1a; --ok:#5ad19a; --bad:#ff5d6c; --lid:#2c3447; --lid2:#1d2231;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body{padding:env(safe-area-inset-top) max(14px,env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+button,input,select{font:inherit;color:inherit}
+.app{max-width:1100px;margin:0 auto;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.app{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}.col{display:grid;gap:14px}}
+.col{display:grid;gap:14px;min-width:0}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 2px 2px;grid-column:1/-1}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.32em;font-size:18px}
+.brand i{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#000 0 32%,var(--amber) 34% 62%,var(--amber-deep) 64% 100%);box-shadow:0 0 18px #ffb54766}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;padding:6px 11px;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill b{width:8px;height:8px;border-radius:50%;background:var(--bad)}
+.pill.on b{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pill.on{color:var(--fg)}
+
+.stage{position:relative;border-radius:22px;background:radial-gradient(120% 90% at 50% 0%,#1b2131 0%,#0e1119 70%);border:1px solid var(--line);padding:10px 8px 6px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair;overflow:hidden}
+.stage svg{display:block;width:100%;height:auto}
+.stage .hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12.5px;color:var(--muted);pointer-events:none;transition:opacity .4s}
+.stage.drag .hint{opacity:0}
+.reticle{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--amber);box-shadow:0 0 14px #ffb54788;pointer-events:none;opacity:0;transition:opacity .2s}
+.stage.drag .reticle{opacity:.9}
+.emo-badge{position:absolute;top:12px;left:12px;font-size:12px;letter-spacing:.06em;padding:5px 10px;border-radius:99px;background:#ffb5471f;color:var(--amber);border:1px solid #ffb54755;opacity:0;transition:opacity .25s}
+.emo-badge.on{opacity:1}
+
+.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px 6px;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .08s,background .15s,border-color .15s}
+.btn svg{width:26px;height:16px}
+.btn:active{transform:scale(.96);background:var(--panel2)}
+.btn:focus-visible,.card:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.btn.primary{background:linear-gradient(180deg,#ffb547,#ff8a2a);color:#1a0f02;border-color:transparent}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;min-width:0}
+.panel h2{margin:0;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+
+.slider{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px}
+.slider label{font-size:13.5px}
+.slider output{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.slider input{grid-column:1/-1}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--amber) var(--p,50%),var(--line) var(--p,50%))}
+input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:var(--line)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:6px;background:var(--amber)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:5px solid var(--amber);margin-top:-9px;box-shadow:0 2px 8px #0008}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:5px solid var(--amber)}
+.lids4{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:12px}
+.lids4[hidden]{display:none}
+
+.switch{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--line)}
+.switch:first-of-type{border-top:0;padding-top:0}
+.switch div{min-width:0}
+.switch b{display:block;font-weight:600;font-size:14.5px}
+.switch small{color:var(--muted);font-size:12.5px}
+.tog{position:relative;flex:none;width:50px;height:30px}
+.tog input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.tog span{position:absolute;inset:0;border-radius:99px;background:var(--line);transition:background .2s;pointer-events:none}
+.tog span::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.tog input:checked+span{background:var(--amber)}
+.tog input:checked+span::after{transform:translateX(20px)}
+.tog input:focus-visible+span{outline:2px solid var(--amber);outline-offset:2px}
+.mini-tog{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.mini-tog .tog{width:42px;height:26px}
+.mini-tog .tog span::after{width:20px;height:20px}
+.mini-tog .tog input:checked+span::after{transform:translateX(16px)}
+
+.emos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){.emos{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:900px){.emos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1060px){.emos{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.card{appearance:none;text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:16px;padding:10px 10px 11px;cursor:pointer;display:grid;gap:4px;position:relative;overflow:hidden;transition:border-color .2s,transform .08s}
+.card:active{transform:scale(.97)}
+.card svg{width:100%;height:auto;border-radius:10px;background:#0e1119}
+.card b{font-size:14.5px;margin-top:4px}
+.card small{color:var(--muted);font-size:12px;line-height:1.35}
+.card.on{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 6px 24px #ffb54722}
+.card.on::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--amber);animation:run 1.4s linear infinite;transform-origin:left}
+@keyframes run{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.stop{font-size:12.5px;padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--muted)}
+
+details.panel summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+details.panel summary::-webkit-details-marker{display:none}
+details.panel summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+details[open].panel summary::after{transform:rotate(-135deg)}
+.servo{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.servo:first-of-type{margin-top:12px}
+.srow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sid{font-family:var(--mono);font-weight:700;color:var(--amber);width:28px}
+select{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.us{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;flex:1;min-width:150px}
+.us span{font-size:12px;color:var(--muted);width:30px}
+.us input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:center}
+.sbtn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px}
+.sbtn:active{background:var(--line)}
+.note{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+.row-end{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.row-end .btn{flex:1;flex-direction:row;justify-content:center;padding:12px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><i></i>ГЛАЗ</div>
+    <span class="pill" id="conn"><b></b><span>подключаюсь…</span></span>
+  </header>
+
+  <div class="col">
+    <div class="stage" id="stage">
+      <span class="emo-badge" id="badge"></span>
+      <svg id="eyes" viewBox="0 0 400 200" aria-label="Глаза: тяни, чтобы двигать зрачки"></svg>
+      <div class="reticle" id="ret"></div>
+      <div class="hint">Тяни пальцем по сцене, и зрачки поедут следом</div>
+    </div>
+
+    <div class="quick">
+      <button class="btn" id="bBlink"><svg viewBox="0 0 26 16"><path d="M2 8q11 9 22 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Моргнуть</button>
+      <button class="btn" id="bWinkL"><svg viewBox="0 0 26 16"><path d="M1 9q5 4 10 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="8" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Левым</button>
+      <button class="btn" id="bWinkR"><svg viewBox="0 0 26 16"><circle cx="6" cy="8" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 9q5 4 10 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Правым</button>
+      <button class="btn" id="bCenter"><svg viewBox="0 0 26 16"><circle cx="13" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="8" r="1.8" fill="currentColor"/></svg>Центр</button>
+    </div>
+
+    <section class="panel">
+      <div class="ph"><h2>Веки</h2>
+        <label class="mini-tog">раздельно <span class="tog"><input type="checkbox" id="split"><span></span></span></label>
+      </div>
+      <div class="slider" id="masterBox">
+        <label for="lidAll">Открытость</label><output id="oAll">85%</output>
+        <input type="range" id="lidAll" min="0" max="100" value="85">
+      </div>
+      <div class="lids4" id="lids4" hidden>
+        <div class="slider"><label for="l0">Левое верхнее</label><output id="o0">85%</output><input type="range" id="l0" min="0" max="100" value="85"></div>
+        <div class="slider"><label for="l2">Правое верхнее</label><output id="o2">85%</output><input type="range" id="l2" min="0" max="100" value="85"></div>
+        <div class="slider"><label for="l1">Левое нижнее</label><output id="o1">85%</output><input type="range" id="l1" min="0" max="100" value="85"></div>
+        <div class="slider"><label for="l3">Правое нижнее</label><output id="o3">85%</output><input type="range" id="l3" min="0" max="100" value="85"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="ph"><h2>Поведение</h2></div>
+      <div class="switch"><div><b>Живой режим</b><small>Если ничего не трогать 4 секунды, сам поглядывает по сторонам и моргает</small></div>
+        <span class="tog"><input type="checkbox" id="live" checked aria-label="Живой режим"><span></span></span></div>
+      <div class="switch"><div><b>Веки следят за взглядом</b><small>Смотрит вниз — верхние веки опускаются, как у человека</small></div>
+        <span class="tog"><input type="checkbox" id="follow" checked aria-label="Веки следят за взглядом"><span></span></span></div>
+      <div class="slider" style="border-top:1px solid var(--line);padding-top:10px">
+        <label for="speed">Скорость движений</label><output id="oSpeed">1.0×</output>
+        <input type="range" id="speed" min="30" max="250" value="100">
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel">
+      <div class="ph"><h2>Эмоции</h2><button class="stop" id="stopEmo">Стоп</button></div>
+      <div class="emos" id="emos"></div>
+    </section>
+
+    <details class="panel" id="setup">
+      <summary><h2>Настройка серв</h2></summary>
+      <p class="note">Если веко закрывается, когда должно открываться, или зрачок едет не туда, нажми ⇄ у этой сервы. Изменение числа сразу двигает серву в это положение.</p>
+      <div id="servos"></div>
+      <div class="row-end">
+        <button class="btn primary" id="save">Сохранить в плату</button>
+        <button class="btn" id="def">Вернуть калибровку</button>
+      </div>
+    </details>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const ROLES = ["Зрачки ← →", "Зрачки ↓ ↑", "Левое верхнее веко", "Левое нижнее веко", "Правое верхнее веко", "Правое нижнее веко"];
+// порядок совпадает с EMOS[] в прошивке. p = поза для картинки: x, y, верх Л, низ Л, верх П, низ П
+const EMOS = [
+  {n:"Удивление", d:"Распахнулся, дважды моргнул, огляделся", p:[0,15,100,100,100,100]},
+  {n:"Злость", d:"Сужает веки и сверлит взглядом", p:[0,-10,20,45,20,45]},
+  {n:"Сонный", d:"Клюёт носом, встрепенулся, уснул", p:[10,-45,20,70,25,70]},
+  {n:"Подозрение", d:"Щурится и медленно косится по сторонам", p:[60,0,25,50,55,60]},
+  {n:"Хитрый", d:"Прищур с улыбкой и подмигивание", p:[30,-10,60,35,0,0]},
+  {n:"Испуг", d:"Широко открыт, взгляд мечется", p:[-70,30,100,100,100,100]},
+  {n:"Закатить глаза", d:"Описывает дугу вверх и устало выдыхает", p:[10,90,100,90,100,90]},
+  {n:"Головокружение", d:"Глаза ходят по кругу, веки качаются", p:[60,50,100,80,55,55]},
+  {n:"Задумался", d:"Смотрит вверх-вбок, потом «ага!»", p:[55,60,100,75,100,75]},
+  {n:"Сканер", d:"Щель как у робота прочёсывает всё вокруг", p:[70,0,25,25,25,25]},
+];
+
+// ---------- рисование глаз ----------
+let uid = 0;
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function buildEyes(svg) {
+  const id = "e" + (uid++);
+  const defs = el("defs", {}, svg);
+  const sc = el("radialGradient", {id: id + "s", cx: "50%", cy: "45%", r: "60%"}, defs);
+  el("stop", {offset: "0%", "stop-color": "#fbf8f2"}, sc);
+  el("stop", {offset: "70%", "stop-color": "#e8e2d7"}, sc);
+  el("stop", {offset: "100%", "stop-color": "#b9b1a3"}, sc);
+  const ir = el("radialGradient", {id: id + "i"}, defs);
+  el("stop", {offset: "35%", "stop-color": "#ffd27a"}, ir);
+  el("stop", {offset: "70%", "stop-color": "#ff9b2f"}, ir);
+  el("stop", {offset: "100%", "stop-color": "#8a3a06"}, ir);
+  const lg = el("linearGradient", {id: id + "l", x1: 0, y1: 0, x2: 0, y2: 1}, defs);
+  el("stop", {offset: "0%", "stop-color": "#3a4360"}, lg);
+  el("stop", {offset: "100%", "stop-color": "#222838"}, lg);
+  const out = {};
+  [["L", 105], ["R", 295]].forEach(([side, cx]) => {
+    const cy = 100;
+    const shape = `M${cx - 80} ${cy}Q${cx} ${cy - 75} ${cx + 80} ${cy}Q${cx} ${cy + 75} ${cx - 80} ${cy}Z`;
+    const cp = el("clipPath", {id: id + side}, defs);
+    el("path", {d: shape}, cp);
+    const g = el("g", {"clip-path": `url(#${id + side})`}, svg);
+    el("rect", {x: cx - 90, y: 0, width: 180, height: 200, fill: `url(#${id}s)`}, g);
+    const iris = el("g", {}, g);
+    el("circle", {cx: 0, cy: 0, r: 33, fill: `url(#${id}i)`}, iris);
+    el("circle", {cx: 0, cy: 0, r: 33, fill: "none", stroke: "#5a2402", "stroke-width": 2, opacity: .5}, iris);
+    el("circle", {cx: 0, cy: 0, r: 13.5, fill: "#07080b"}, iris);
+    el("circle", {cx: -10, cy: -11, r: 5, fill: "#fff", opacity: .9}, iris);
+    el("circle", {cx: 8, cy: 9, r: 2.2, fill: "#fff", opacity: .6}, iris);
+    const up = el("path", {fill: `url(#${id}l)`, stroke: "#07080b", "stroke-width": 3}, g);
+    const lo = el("path", {fill: `url(#${id}l)`, stroke: "#07080b", "stroke-width": 3}, g);
+    el("path", {d: shape, fill: "none", stroke: "#2a3246", "stroke-width": 4}, svg);
+    out[side] = {iris, up, lo, cx, cy};
+  });
+  return out;
+}
+function upperLid(cx, cy, o) {
+  const e = cy - 40 + (1 - o) * 40, s = e - (4 + 14 * o), c = 2 * e - s;
+  return `M${cx - 95} ${cy - 95}H${cx + 95}V${s}Q${cx} ${c} ${cx - 95} ${s}Z`;
+}
+function lowerLid(cx, cy, o) {
+  const e = cy + 40 - (1 - o) * 40, s = e + (4 + 14 * o), c = 2 * e - s;
+  return `M${cx - 95} ${cy + 95}H${cx + 95}V${s}Q${cx} ${c} ${cx - 95} ${s}Z`;
+}
+function drawEyes(E, p) { // p: x,y в -1..1, веки 0..1
+  const [x, y, ul, ll, ur, lr] = p;
+  [["L", ul, ll], ["R", ur, lr]].forEach(([s, u, l]) => {
+    const e = E[s];
+    e.iris.setAttribute("transform", `translate(${(e.cx + x * 40).toFixed(1)} ${(e.cy - y * 28).toFixed(1)})`);
+    e.up.setAttribute("d", upperLid(e.cx, e.cy, u));
+    e.lo.setAttribute("d", lowerLid(e.cx, e.cy, l));
+  });
+}
+
+const main = buildEyes($("eyes"));
+let pose = [0, 0, .85, .85, .85, .85];
+drawEyes(main, pose);
+
+// ---------- связь ----------
+let ws = null, online = false, cfg = null, curEmo = -1;
+function setConn(on) {
+  online = on;
+  $("conn").classList.toggle("on", on);
+  $("conn").lastElementChild.textContent = on ? "на связи" : "нет связи";
+}
+function connect() {
+  const host = location.hostname || "192.168.4.1";
+  try { ws = new WebSocket(`ws://${host}:81/`); } catch (e) { setTimeout(connect, 1500); return; }
+  ws.onopen = () => setConn(true);
+  ws.onclose = () => { setConn(false); setTimeout(connect, 1200); };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.s) { pose = m.s.map(v => v / 100); drawEyes(main, pose); }
+    if ("e" in m) setEmo(m.e);
+    if (m.cfg) applyCfg(m.cfg);
+    if (m.ok) toast(m.ok);
+  };
+}
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+connect();
+
+let toastT;
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove("on"), 1800); }
+
+// ---------- взгляд: перетаскивание ----------
+const stage = $("stage"), ret = $("ret");
+let gaze = [0, 0], gazeDirty = false;
+function gazeFrom(ev) {
+  const r = stage.getBoundingClientRect();
+  const px = (ev.clientX - r.left) / r.width, py = (ev.clientY - r.top) / r.height;
+  ret.style.left = (px * 100) + "%"; ret.style.top = (py * 100) + "%";
+  const cl = v => Math.max(-1, Math.min(1, v));
+  gaze = [cl((px - .5) * 2.4), cl(-(py - .5) * 2.4)];
+  gazeDirty = true;
+  if (!online) { pose[0] = gaze[0]; pose[1] = gaze[1]; drawEyes(main, pose); }
+}
+stage.addEventListener("pointerdown", ev => { stage.setPointerCapture(ev.pointerId); stage.classList.add("drag"); gazeFrom(ev); });
+stage.addEventListener("pointermove", ev => { if (stage.classList.contains("drag")) gazeFrom(ev); });
+const endDrag = () => stage.classList.remove("drag");
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", endDrag);
+setInterval(() => { if (gazeDirty) { gazeDirty = false; send({g: gaze.map(v => +v.toFixed(3))}); } }, 40);
+
+// ---------- кнопки ----------
+$("bBlink").onclick = () => send({b: 0});
+$("bWinkL").onclick = () => send({b: 1});
+$("bWinkR").onclick = () => send({b: 2});
+$("bCenter").onclick = () => { send({c: 1}); setLidsUI([.85, .85, .85, .85]); };
+
+// ---------- веки ----------
+const lids = [.85, .85, .85, .85];
+let lidsDirty = false;
+function paint(r) { r.style.setProperty("--p", ((r.value - r.min) / (r.max - r.min) * 100) + "%"); }
+function setLidsUI(v) {
+  v.forEach((x, i) => { lids[i] = x; const r = $("l" + i); r.value = Math.round(x * 100); paint(r); $("o" + i).textContent = r.value + "%"; });
+  const avg = Math.round(v.reduce((a, b) => a + b, 0) / 4 * 100);
+  $("lidAll").value = avg; paint($("lidAll")); $("oAll").textContent = avg + "%";
+}
+$("lidAll").addEventListener("input", e => { const v = e.target.value / 100; setLidsUI([v, v, v, v]); lidsDirty = true; });
+for (let i = 0; i < 4; i++) $("l" + i).addEventListener("input", e => {
+  lids[i] = e.target.value / 100; $("o" + i).textContent = e.target.value + "%"; paint(e.target); lidsDirty = true;
+});
+$("split").addEventListener("change", e => { $("lids4").hidden = !e.target.checked; $("masterBox").hidden = e.target.checked; });
+setInterval(() => { if (lidsDirty) { lidsDirty = false; send({l: lids.map(v => +v.toFixed(2))}); } }, 50);
+
+// ---------- поведение ----------
+$("live").addEventListener("change", e => send({lv: e.target.checked ? 1 : 0}));
+$("follow").addEventListener("change", e => send({fo: e.target.checked ? 1 : 0}));
+$("speed").addEventListener("input", e => { paint(e.target); $("oSpeed").textContent = (e.target.value / 100).toFixed(1) + "×"; });
+$("speed").addEventListener("change", e => send({sp: e.target.value / 100}));
+
+// ---------- эмоции ----------
+const cards = EMOS.map((em, i) => {
+  const b = document.createElement("button");
+  b.className = "card";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 400 200");
+  svg.setAttribute("aria-hidden", "true");
+  b.appendChild(svg);
+  drawEyes(buildEyes(svg), [em.p[0] / 100, em.p[1] / 100, em.p[2] / 100, em.p[3] / 100, em.p[4] / 100, em.p[5] / 100]);
+  b.insertAdjacentHTML("beforeend", `<b>${em.n}</b><small>${em.d}</small>`);
+  b.onclick = () => { send({e: i}); setEmo(i); };
+  $("emos").appendChild(b);
+  return b;
+});
+function setEmo(i) {
+  if (i === curEmo) return;
+  curEmo = i;
+  cards.forEach((c, k) => c.classList.toggle("on", k === i));
+  $("badge").textContent = i >= 0 ? EMOS[i].n : "";
+  $("badge").classList.toggle("on", i >= 0);
+}
+$("stopEmo").onclick = () => { send({e: -1}); setEmo(-1); };
+
+// ---------- настройка серв ----------
+function applyCfg(c) {
+  cfg = c;
+  $("live").checked = !!c.lv;
+  $("follow").checked = !!c.fo;
+  $("speed").value = Math.round(c.sp * 100); paint($("speed")); $("oSpeed").textContent = c.sp.toFixed(1) + "×";
+  if (c.pca === false) toast("PCA9685 не отвечает — проверь SDA/SCL/VCC");
+  renderServos();
+}
+function renderServos() {
+  const box = $("servos");
+  if (box.contains(document.activeElement)) { // не сбивать ввод: только обновить значения
+    for (let i = 0; i < 6; i++) {
+      const mn = $("mn" + i), mx = $("mx" + i), r = $("r" + i);
+      if (mn !== document.activeElement) mn.value = cfg.mn[i];
+      if (mx !== document.activeElement) mx.value = cfg.mx[i];
+      if (r !== document.activeElement) r.value = cfg.role[i];
+    }
+    return;
+  }
+  box.innerHTML = "";
+  for (let i = 0; i < 6; i++) {
+    const row = document.createElement("div");
+    row.className = "servo";
+    const opts = ROLES.map((n, k) => `<option value="${k}"${cfg.role[i] === k ? " selected" : ""}>${n}</option>`).join("");
+    row.innerHTML = `
+      <div class="srow"><span class="sid">S${i + 1}</span><select id="r${i}" aria-label="Роль S${i + 1}">${opts}</select>
+        <button class="sbtn" id="sw${i}" title="Перевернуть направление">⇄</button></div>
+      <div class="srow">
+        <label class="us"><span>${cfg.role[i] < 2 ? "−1" : "закр"}</span><input id="mn${i}" type="number" inputmode="numeric" step="10" min="400" max="2600" value="${cfg.mn[i]}"><button class="sbtn" data-t="mn${i}">тест</button></label>
+        <label class="us"><span>${cfg.role[i] < 2 ? "+1" : "откр"}</span><input id="mx${i}" type="number" inputmode="numeric" step="10" min="400" max="2600" value="${cfg.mx[i]}"><button class="sbtn" data-t="mx${i}">тест</button></label>
+      </div>`;
+    box.appendChild(row);
+    $("r" + i).onchange = e => send({cal: {i, r: +e.target.value}});
+    $("sw" + i).onclick = () => send({cal: {i, mn: cfg.mx[i], mx: cfg.mn[i]}});
+    ["mn", "mx"].forEach(k => {
+      const inp = $(k + i);
+      inp.onchange = () => { const v = Math.max(400, Math.min(2600, +inp.value || 1500)); inp.value = v; send({cal: {i, [k]: v}}); send({t: {i, us: v}}); };
+    });
+    row.querySelectorAll("[data-t]").forEach(b => b.onclick = ev => { ev.preventDefault(); send({t: {i, us: +$(b.dataset.t).value}}); });
+  }
+}
+$("save").onclick = () => send({save: 1});
+$("def").onclick = () => { send({def: 1}); toast("Калибровка возвращена. Нажми «Сохранить», чтобы запомнить"); };
+
+// оффлайн-превью, пока нет связи: картинка с примером настройки
+if (!cfg) applyCfg({mn: [400, 1800, 1600, 1500, 1400, 1150], mx: [1050, 550, 2150, 2520, 2100, 1950], role: [5, 4, 1, 2, 3, 0], sp: 1, lv: 1, fo: 1});
+setLidsUI(lids);
+</script>
+</body>
+</html>

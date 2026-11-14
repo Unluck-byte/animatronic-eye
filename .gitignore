@@ -1,0 +1,4 @@
+.pio/
+.vscode/
+src/page.h
+calibration/.pio/
